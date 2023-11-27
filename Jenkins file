@@ -1,0 +1,37 @@
+node{
+
+echo "The Job name is: ${env.JOB_NAME}"
+echo "The Build number is: ${env.BUILD_NUMBER}"
+echo "The Node name is: ${env.NODE_NAME}"
+echo "The Home Dir is: ${env.JENKINS_HOME}"
+
+properties([buildDiscarder(logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '5', daysToKeepStr: '', numToKeepStr: '5')), [$class: 'JobLocalConfiguration', changeReasonComment: ''], pipelineTriggers([pollSCM('* * * * *')])])
+
+def mavenHome = tool name: "maven3.9.4" 
+
+stage(' CheckoutCode'){
+git branch: 'development', credentialsId: 'a4b3c8f8-02f3-459b-bdc5-b8251dd4941b', url: 'https://github.com/Kavya-dev132/maven-web-application.git'
+}
+
+stage('Build'){
+sh "${mavenHome}/bin/mvn clean package"
+}
+
+stage('ExecuteSonarQubeReport'){
+sh "${mavenHome}/bin/mvn clean sonar:sonar"
+}
+
+stage('UploadIntoNexus'){
+sh "${mavenHome}/bin/mvn clean deploy"
+}
+
+stage('DeployAppIntoTomcat'){
+sshagent(['0b2b2bfc-a541-4856-8cbc-3dfefde7ff3a']) {
+    sh "scp -o StrictHostKeyChecking=no target/maven-web-application.war ec2-user@172.31.45.156:/opt/apache-tomcat-9.0.82/webapps/ " 
+
+}
+}
+
+}
+
+
